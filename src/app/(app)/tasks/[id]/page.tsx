@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ExportMenu } from "@/components/ui/export-menu";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import type { TaskStatus } from "@prisma/client";
@@ -98,6 +99,7 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
+          <ExportMenu base={`/api/export/tasks/${task.id}`} label="Task sheet" note="Includes the full history — useful for UAT and sign-off records." />
           {canEditTask(user, task) && (
             <LinkButton href={`/tasks/${task.id}/edit`} variant="outline" size="sm"><Pencil /> Edit</LinkButton>
           )}

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { cn, initials } from "@/lib/utils";
@@ -84,7 +85,7 @@ export function StatCard({
       )}
     </div>
   );
-  return href ? <a href={href}>{body}</a> : body;
+  return href ? <Link href={href}>{body}</Link> : body;
 }
 
 export function Avatar({ name, size = "md", className }: { name: string; size?: "sm" | "md" | "lg"; className?: string }) {

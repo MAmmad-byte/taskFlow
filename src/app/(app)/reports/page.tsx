@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ExportMenu } from "@/components/ui/export-menu";
 import type { Metadata } from "next";
 import { TriangleAlert, CircleCheck, Clock4, Inbox, Target, TimerReset } from "lucide-react";
 import { db } from "@/lib/db";
@@ -38,12 +39,15 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         title="Reports"
         description={`${scope} · ${fmtDate(range.from)} – ${fmtDate(range.to)}`}
         actions={
+          <div className="flex flex-wrap items-center gap-2">
           <RangePicker
             from={toDateInput(range.from)}
             to={toDateInput(range.to)}
             active={range.key}
             extra={<TeamSelect teams={allTeams} value={teamId} />}
           />
+          <ExportMenu base="/api/export/report" params={params} />
+          </div>
         }
       />
 

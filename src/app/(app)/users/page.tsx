@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ExportMenu } from "@/components/ui/export-menu";
 import type { Metadata } from "next";
 import { KeyRound, Search } from "lucide-react";
 import { db } from "@/lib/db";
@@ -53,7 +54,12 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
       <PageHeader
         title="Users"
         description="Login accounts (seats). Each seat is held by an employee and carries its tasks."
-        actions={can(user, "user.manage") && <LinkButton href="/users/new"><KeyRound className="size-4" /> New user</LinkButton>}
+        actions={
+          <>
+            <ExportMenu base="/api/export/users" params={q ? { q } : undefined} />
+            {can(user, "user.manage") && <LinkButton href="/users/new"><KeyRound className="size-4" /> New user</LinkButton>}
+          </>
+        }
       />
 
       <form className="mb-4 flex flex-wrap items-center gap-2">

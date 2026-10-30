@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { Card, PageHeader } from "@/components/ui/misc";
@@ -15,7 +16,7 @@ export default async function AuditPage() {
   });
   return (
     <>
-      <PageHeader title="Audit log" description="The latest 200 administrative actions and sign-ins." />
+      <PageHeader title="Audit log" description="The latest 200 administrative actions and sign-ins." actions={<ExportMenu base="/api/export/audit" note="Exports up to the latest 5,000 entries." />} />
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="table-base">

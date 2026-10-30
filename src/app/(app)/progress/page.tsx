@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ExportMenu } from "@/components/ui/export-menu";
 import type { Metadata } from "next";
 import { TriangleAlert, Activity, CircleCheck, ClipboardList, Search, Target, UserSearch } from "lucide-react";
 import { db } from "@/lib/db";
@@ -71,7 +72,12 @@ export default async function ProgressPage({ searchParams }: { searchParams: Pro
       <PageHeader
         title={code && data ? "Employee progress" : "My progress"}
         description={code && data ? "Work completed by this employee across every seat they've held" : `Your work as @${user.username}`}
-        actions={<RangePicker from={toDateInput(range.from)} to={toDateInput(range.to)} active={range.key} />}
+        actions={
+          <>
+            <RangePicker from={toDateInput(range.from)} to={toDateInput(range.to)} active={range.key} />
+            {(data || !code) && <ExportMenu base="/api/export/progress" params={params} />}
+          </>
+        }
       />
 
       {lookup && (

@@ -114,11 +114,6 @@ export async function getScopeSummary(user: AuthUser) {
 
 // ───────────────────────── Reports ─────────────────────────
 
-type ReportTask = {
-  id: string; status: TaskStatus; teamId: string; assigneeId: string | null; applicationId: string | null;
-  createdAt: Date; completedAt: Date | null; dueDate: Date | null;
-};
-
 function bucketer(range: Range) {
   const span = differenceInCalendarDays(range.to, range.from) + 1;
   if (span <= 62) {

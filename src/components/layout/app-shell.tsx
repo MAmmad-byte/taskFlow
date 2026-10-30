@@ -179,7 +179,7 @@ function NotificationBell({ notifications, unread }: { notifications: ShellNotif
             )}
           </div>
           <ul className="max-h-96 divide-y divide-zinc-100 overflow-y-auto">
-            {notifications.length === 0 && <li className="px-4 py-8 text-center text-sm text-zinc-500">You're all caught up.</li>}
+            {notifications.length === 0 && <li className="px-4 py-8 text-center text-sm text-zinc-500">You&apos;re all caught up.</li>}
             {notifications.map((n) => (
               <li key={n.id} className={cn("px-4 py-3", !n.read && "bg-brand-50/40")}>
                 <Link href={n.link ?? "#"} onClick={() => setOpen(false)} className="block">

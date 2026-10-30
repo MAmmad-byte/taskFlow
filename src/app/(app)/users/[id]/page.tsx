@@ -31,15 +31,18 @@ export default async function UserPage({ params }: { params: Promise<{ id: strin
   const manage = canManageUser(me, target);
   const all = scopeLevel(me) === "all";
 
-  const [open, overdue, done, roles, departments, freeEmployees] = await Promise.all([
+  const [open, overdue, done, roleRows, departments, freeEmployees] = await Promise.all([
     db.task.count({ where: { assigneeId: id, status: { in: OPEN_STATUSES } } }),
     db.task.count({ where: { assigneeId: id, status: { in: OPEN_STATUSES }, dueDate: { lt: new Date() } } }),
     db.task.count({ where: { assigneeId: id, status: { in: DONE_STATUSES } } }),
-    manage ? db.role.findMany({ where: all ? {} : { level: { lt: me.role.level } }, orderBy: { level: "asc" }, select: { id: true, name: true } }) : [],
-    manage && all ? db.department.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }) : [],
+    manage ? db.role.findMany({ where: all ? {} : { level: { lt: me.role.level } }, orderBy: { level: "asc" }, select: { id: true, name: true } }) : ([] as { id: string; name: string }[]),
+    manage && all ? db.department.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }) : ([] as { id: string; name: string }[]),
     manage ? db.employee.findMany({ where: { ...employeeScope(me), isActive: true, OR: [{ user: null }, { id: target.employeeId ?? "__" }] }, orderBy: { name: "asc" } }) : [],
   ]);
-  if (manage && !roles.some((r) => r.id === target.roleId)) roles.push({ id: target.role.id, name: target.role.name });
+  // make sure the user's current role is always selectable, even if it's above what the actor may grant
+  const roles: { id: string; name: string }[] = roleRows.some((r) => r.id === target.roleId)
+    ? roleRows
+    : [...roleRows, { id: target.role.id, name: target.role.name }];
   const perms = target.role.permissions.map((rp) => rp.permission).sort((a, b) => a.group.localeCompare(b.group));
   const name = target.employee?.name ?? target.displayTitle ?? target.username;
 

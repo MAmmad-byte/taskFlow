@@ -104,6 +104,20 @@ When someone signs in, a dialog lists their **overdue**, **due today** and **due
 
 Each chart has a **Table** view for accessibility and for copying figures.
 
+## Excel & PDF exports
+
+Each list or report has an **Export** button with Excel (.xlsx) and PDF options. Exports run on the server and only include data the user is allowed to see.
+
+| Where | Excel | PDF |
+|---|---|---|
+| Tasks list | Every task matching the current view and filters (all pages, up to 5,000) with all columns: requester, dates, employee IDs and description | Landscape table of the key columns |
+| Task detail → *Task sheet* | Details and full history, on two sheets | One-page task record with history and a "Verified by / Date" box for UAT or sign-off files |
+| Reports | Summary, team progress, trend, status, application and workload, each on its own sheet | KPI boxes, team-progress bar chart and the supporting tables |
+| My progress / employee lookup | Summary, completed, open and daily sheets | Summary plus completed and open tables |
+| Users, Employees, Audit log | Full list | Printable table |
+
+The download endpoints live under `src/app/api/export/`, and the shared builders are in `src/lib/export/`. Excel files are made with `exceljs` and PDFs with `pdf-lib`. PDFs use the built-in Helvetica font, so characters outside Western European text (for example Urdu) appear as `?` in PDFs only. Excel exports keep them correctly.
+
 ## Project structure
 
 ```

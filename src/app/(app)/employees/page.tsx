@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ExportMenu } from "@/components/ui/export-menu";
 import type { Metadata } from "next";
 import type { Prisma } from "@prisma/client";
 import { Pencil, Plus, Search, Users } from "lucide-react";
@@ -48,11 +49,14 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
         title="Employees"
         description="The employee register. Place an employee on a user seat from the Users screen."
         actions={
-          manage && (
+          <>
+          <ExportMenu base="/api/export/employees" params={q ? { q } : undefined} />
+          {manage && (
             <Modal trigger={<><Plus className="size-4" /> Add employee</>} title="Add employee" size="lg">
               <EmployeeForm departments={departments} showDepartment={all} />
             </Modal>
-          )
+          )}
+          </>
         }
       />
       <form className="mb-4">

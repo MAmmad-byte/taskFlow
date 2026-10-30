@@ -1,17 +1,15 @@
 import Link from "next/link";
+import { ExportMenu } from "@/components/ui/export-menu";
 import type { Metadata } from "next";
-import type { Prisma, TaskPriority, TaskStatus, TaskType } from "@prisma/client";
-import { endOfDay, endOfWeek, startOfDay } from "date-fns";
 import { ChevronLeft, ChevronRight, Inbox } from "lucide-react";
 import { db } from "@/lib/db";
-import { requireUser, scopeLevel, taskScope, teamScope } from "@/lib/auth";
+import { requireUser, scopeLevel, teamScope } from "@/lib/auth";
+import { buildTaskQuery } from "@/lib/task-filters";
 import { Card, EmptyState, PageHeader, Avatar, ProgressBar } from "@/components/ui/misc";
 import { LinkButton } from "@/components/ui/button";
 import { TaskFilters } from "@/components/tasks/task-filters";
 import { DueLabel, PriorityBadge, StatusBadge } from "@/components/tasks/badges";
-import {
-  OPEN_STATUSES, PRIORITY_META, STATUS_META, STATUS_ORDER, TYPE_META, taskCode, type Phase,
-} from "@/lib/workflow";
+import { PRIORITY_META, STATUS_META, STATUS_ORDER, TYPE_META, taskCode } from "@/lib/workflow";
 import { fmtDate, sp } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Tasks" };
@@ -24,66 +22,12 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const raw = await searchParams;
   const p = (k: string) => sp(raw[k]);
 
-  const supervisor = scopeLevel(user) !== "team" || user.leadTeamIds.length > 0;
+  const { where, view, supervisor } = buildTaskQuery(user, p);
   const views = [
     { value: "mine", label: "Assigned to me" },
     { value: "created", label: "Logged by me" },
     { value: "scope", label: scopeLevel(user) === "all" ? "All tasks" : scopeLevel(user) === "department" ? "Department" : supervisor ? "My teams" : "Team" },
   ];
-  const view = p("view") ?? (supervisor ? "scope" : "mine");
-
-  // ── build the where clause ──
-  const and: Prisma.TaskWhereInput[] = [taskScope(user)];
-  if (view === "mine") and.push({ assigneeId: user.id });
-  if (view === "created") and.push({ createdById: user.id });
-
-  const status = p("status");
-  if (status && STATUS_ORDER.includes(status as TaskStatus)) and.push({ status: status as TaskStatus });
-  const phase = p("phase");
-  if (phase === "open_all") and.push({ status: { in: OPEN_STATUSES } });
-  else if (phase) {
-    const list = STATUS_ORDER.filter((s) => STATUS_META[s].phase === (phase as Phase));
-    if (list.length) and.push({ status: { in: list } });
-  }
-  if (p("team")) and.push({ teamId: p("team") });
-  if (p("app")) and.push({ applicationId: p("app") });
-  if (p("priority") && p("priority")! in PRIORITY_META) and.push({ priority: p("priority") as TaskPriority });
-  if (p("type") && p("type")! in TYPE_META) and.push({ type: p("type") as TaskType });
-  if (p("assignee") === "none") and.push({ assigneeId: null });
-  else if (p("assignee")) and.push({ assigneeId: p("assignee") });
-
-  const now = new Date();
-  const due = p("due");
-  if (due === "overdue") and.push({ status: { in: OPEN_STATUSES }, dueDate: { lt: now } });
-  if (due === "attention") and.push({ status: { in: OPEN_STATUSES }, dueDate: { lt: new Date(now.getTime() + 48 * 3600_000) } });
-  if (due === "week") and.push({ status: { in: OPEN_STATUSES }, dueDate: { gte: startOfDay(now), lte: endOfWeek(now, { weekStartsOn: 1 }) } });
-  if (due === "none") and.push({ dueDate: null });
-
-  const from = p("from"), to = p("to");
-  if (from || to) {
-    and.push({
-      createdAt: {
-        ...(from && !Number.isNaN(Date.parse(from)) ? { gte: startOfDay(new Date(from)) } : {}),
-        ...(to && !Number.isNaN(Date.parse(to)) ? { lte: endOfDay(new Date(to)) } : {}),
-      },
-    });
-  }
-
-  const q = p("q")?.trim();
-  if (q) {
-    const num = Number(q.replace(/^tsk-?/i, ""));
-    and.push({
-      OR: [
-        { title: { contains: q, mode: "insensitive" } },
-        { description: { contains: q, mode: "insensitive" } },
-        { requesterName: { contains: q, mode: "insensitive" } },
-        { requesterOffice: { contains: q, mode: "insensitive" } },
-        ...(Number.isInteger(num) && num > 0 ? [{ number: num }] : []),
-      ],
-    });
-  }
-
-  const where: Prisma.TaskWhereInput = { AND: and };
   const page = Math.max(1, Number(p("page") ?? 1) || 1);
 
   const [tasks, total, teams, apps, assignees] = await Promise.all([
@@ -120,7 +64,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
       <PageHeader
         title="Tasks"
         description="Every request and complaint, from logging to sign-off."
-        actions={<LinkButton href="/tasks/new">New task</LinkButton>}
+        actions={<><ExportMenu base="/api/export/tasks" params={raw} note="Exports every task matching the current view and filters, not just this page." /><LinkButton href="/tasks/new">New task</LinkButton></>}
       />
 
       <TaskFilters
@@ -160,7 +104,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
                         <td>
                           <Link href={`/tasks/${t.id}`} className="block after:absolute after:inset-0">
                             <div className="flex items-center gap-2 text-xs text-zinc-400">
-                              <span className="font-mono">{taskCode(t.number)}</span>
+                              <span className="whitespace-nowrap font-mono">{taskCode(t.number)}</span>
                               <span>·</span>
                               <span>{TYPE_META[t.type].label}</span>
                               {t.application && (
