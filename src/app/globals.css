@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* Brand — deep green */
+  --color-brand-50: #ecfdf3;
+  --color-brand-100: #d1fadf;
+  --color-brand-200: #a6f4c5;
+  --color-brand-300: #6ce9a6;
+  --color-brand-400: #32d583;
+  --color-brand-500: #12b76a;
+  --color-brand-600: #039855;
+  --color-brand-700: #027a48;
+  --color-brand-800: #05603a;
+  --color-brand-900: #054f31;
+
+  /* Chart palette (validated, colour-blind safe adjacent order) */
+  --color-chart-1: #2a78d6;
+  --color-chart-2: #eb6834;
+  --color-chart-3: #6250d6;
+  --color-chart-4: #1baf7a;
+
+  --radius-card: 0.875rem;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-zinc-50 text-zinc-900;
+  }
+  ::selection {
+    @apply bg-brand-100 text-brand-900;
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    opacity: 0.55;
+    cursor: pointer;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-[var(--radius-card)] border border-zinc-200/80 bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)];
+  }
+  .field-label {
+    @apply mb-1.5 block text-[13px] font-medium text-zinc-700;
+  }
+  .input {
+    @apply block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-xs
+      placeholder:text-zinc-400 transition
+      focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/15
+      disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-500;
+  }
+  .input[aria-invalid="true"] {
+    @apply border-red-400 focus:border-red-500 focus:ring-red-500/15;
+  }
+  .table-base {
+    @apply w-full text-left text-sm;
+  }
+  .table-base thead th {
+    @apply whitespace-nowrap border-b border-zinc-200 bg-zinc-50/70 px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-zinc-500;
+  }
+  .table-base tbody td {
+    @apply border-b border-zinc-100 px-4 py-3 align-middle;
+  }
+  .table-base tbody tr:last-child td {
+    @apply border-b-0;
+  }
+  .table-base tbody tr {
+    @apply transition-colors hover:bg-zinc-50/80;
+  }
+}
+
+/* Native <dialog> polish */
+dialog::backdrop {
+  background: rgb(9 9 11 / 0.45);
+  backdrop-filter: blur(2px);
+}
+dialog[open] {
+  animation: pop 160ms ease-out;
+}
+@keyframes pop {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@media print {
+  aside, header, .no-print { display: none !important; }
+  main { padding: 0 !important; }
+}

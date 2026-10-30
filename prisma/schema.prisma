@@ -1,0 +1,311 @@
+// TaskFlow — data model
+// Organisation:  Department -> Team -> TeamMembership -> User (login seat) -> Employee (person)
+// Work:          Task -> TaskActivity (full status / assignment / comment history)
+// Access:        Role -> RolePermission -> Permission
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────── Access control ───────────────────────────────
+
+model Role {
+  id          String           @id @default(cuid())
+  key         String           @unique // ADMIN | HOD | TEAM_LEAD | MEMBER | custom
+  name        String
+  description String?
+  level       Int              @default(10) // higher = more authority; users can only manage lower levels
+  isSystem    Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  permissions RolePermission[]
+  users       User[]
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique // e.g. "task.create"
+  name        String
+  group       String
+  description String?
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+// ─────────────────────────────── Organisation ───────────────────────────────
+
+model Department {
+  id          String     @id @default(cuid())
+  code        String     @unique
+  name        String
+  description String?
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  teams       Team[]
+  employees   Employee[]
+  users       User[]
+}
+
+/// A person on the HR/employee register. Not a login by itself.
+model Employee {
+  id           String           @id @default(cuid())
+  employeeCode String           @unique // the organisation's Employee ID
+  name         String
+  email        String           @unique
+  phone        String?
+  designation  String?
+  departmentId String
+  isActive     Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  department   Department       @relation(fields: [departmentId], references: [id])
+  user         User?            @relation("CurrentEmployee")
+  assignments  UserAssignment[]
+  activities   TaskActivity[]   @relation("ActivityEmployee")
+  completed    Task[]           @relation("CompletedByEmployee")
+
+  @@index([departmentId])
+}
+
+/// A login "seat" (e.g. erp.dev01). Tasks belong to the seat, so when a
+/// different employee is placed on the seat, the open work follows the seat
+/// and is shown under the employee currently holding it.
+model User {
+  id                 String           @id @default(cuid())
+  username           String           @unique
+  passwordHash       String
+  displayTitle       String? // e.g. "ERP Developer 1" — shown when no employee is assigned
+  roleId             String
+  departmentId       String?
+  employeeId         String?          @unique
+  isActive           Boolean          @default(true)
+  mustChangePassword Boolean          @default(true)
+  lastLoginAt        DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  role               Role             @relation(fields: [roleId], references: [id])
+  department         Department?      @relation(fields: [departmentId], references: [id])
+  employee           Employee?        @relation("CurrentEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
+  memberships        TeamMembership[]
+  assignmentHistory  UserAssignment[] @relation("SeatHistory")
+  assignmentsMade    UserAssignment[] @relation("AssignedBy")
+  assignedTasks      Task[]           @relation("TaskAssignee")
+  createdTasks       Task[]           @relation("TaskCreator")
+  activities         TaskActivity[]   @relation("ActivityActor")
+  notifications      Notification[]
+  auditLogs          AuditLog[]
+
+  @@index([roleId])
+  @@index([departmentId])
+}
+
+/// History of which employee held which user seat, and when.
+model UserAssignment {
+  id           String    @id @default(cuid())
+  userId       String
+  employeeId   String
+  assignedById String?
+  assignedAt   DateTime  @default(now())
+  releasedAt   DateTime?
+  note         String?
+  user         User      @relation("SeatHistory", fields: [userId], references: [id], onDelete: Cascade)
+  employee     Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  assignedBy   User?     @relation("AssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([employeeId])
+}
+
+model Team {
+  id           String           @id @default(cuid())
+  name         String
+  code         String           @unique
+  description  String?
+  departmentId String
+  isActive     Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  department   Department       @relation(fields: [departmentId], references: [id])
+  members      TeamMembership[]
+  tasks        Task[]
+
+  @@index([departmentId])
+}
+
+model TeamMembership {
+  id       String   @id @default(cuid())
+  teamId   String
+  userId   String
+  isLead   Boolean  @default(false)
+  joinedAt DateTime @default(now())
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([userId])
+}
+
+// ─────────────────────────────── Work ───────────────────────────────
+
+/// Systems the team supports: Oracle HCM, ERP, eOffice, Insights …
+model Application {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  color       String   @default("#2a78d6")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  tasks       Task[]
+}
+
+enum TaskStatus {
+  NEW
+  ASSIGNED
+  IN_PROGRESS
+  ON_HOLD
+  IN_DEVELOPMENT
+  TESTING
+  PENDING_UAT
+  UAT_FAILED
+  READY_FOR_DEPLOYMENT
+  DEPLOYED
+  COMPLETED
+  CLOSED
+  CANCELLED
+}
+
+enum TaskType {
+  BUG
+  FEATURE
+  ENHANCEMENT
+  OPERATIONAL
+  SUPPORT
+  DATA_FIX
+  REPORT
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RequestSource {
+  VERBAL
+  WHATSAPP
+  EMAIL
+  CALL
+  LETTER
+  MEETING
+  OTHER
+}
+
+model Task {
+  id                    String         @id @default(cuid())
+  number                Int            @unique @default(autoincrement())
+  title                 String
+  description           String?
+  type                  TaskType       @default(SUPPORT)
+  priority              TaskPriority   @default(MEDIUM)
+  status                TaskStatus     @default(NEW)
+  source                RequestSource  @default(VERBAL)
+  requesterName         String?
+  requesterContact      String?
+  requesterOffice       String?
+  applicationId         String?
+  teamId                String
+  assigneeId            String?
+  createdById           String
+  progress              Int            @default(0)
+  startDate             DateTime?
+  dueDate               DateTime?
+  completedAt           DateTime?
+  completedByEmployeeId String?
+  closedAt              DateTime?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  application           Application?   @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  team                  Team           @relation(fields: [teamId], references: [id])
+  assignee              User?          @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdBy             User           @relation("TaskCreator", fields: [createdById], references: [id])
+  completedByEmployee   Employee?      @relation("CompletedByEmployee", fields: [completedByEmployeeId], references: [id], onDelete: SetNull)
+  activities            TaskActivity[]
+
+  @@index([teamId, status])
+  @@index([assigneeId, status])
+  @@index([dueDate])
+  @@index([createdAt])
+  @@index([completedAt])
+}
+
+enum ActivityType {
+  CREATED
+  STATUS_CHANGE
+  ASSIGNED
+  COMMENT
+  UPDATED
+}
+
+model TaskActivity {
+  id              String       @id @default(cuid())
+  taskId          String
+  type            ActivityType
+  fromStatus      TaskStatus?
+  toStatus        TaskStatus?
+  progress        Int?
+  note            String?
+  actorUserId     String
+  actorEmployeeId String? // snapshot: who was physically on the seat at that moment
+  fromAssigneeId  String?
+  toAssigneeId    String?
+  createdAt       DateTime     @default(now())
+  task            Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  actor           User         @relation("ActivityActor", fields: [actorUserId], references: [id])
+  actorEmployee   Employee?    @relation("ActivityEmployee", fields: [actorEmployeeId], references: [id], onDelete: SetNull)
+
+  @@index([taskId, createdAt])
+  @@index([actorEmployeeId])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  title     String
+  body      String?
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String // e.g. "user.create", "team.member.add"
+  entity    String
+  entityId  String?
+  details   Json?
+  createdAt DateTime @default(now())
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([entity, entityId])
+}
